@@ -1,0 +1,908 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tab Summarizer</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+      :root {
+        --bg-primary: #0a0814;
+        --card-bg: rgba(255, 255, 255, 0.03);
+        --card-border: rgba(255, 255, 255, 0.06);
+        --card-hover-border: rgba(255, 255, 255, 0.12);
+        --text-primary: #ffffff;
+        --text-secondary: #94a3b8;
+        --accent-purple: #818cf8;
+        --accent-pink: #c084fc;
+        --accent-teal: #2dd4bf;
+        --success: #10b981;
+        --success-bg: rgba(16, 185, 129, 0.06);
+        --success-border: rgba(16, 185, 129, 0.15);
+        --error: #ef4444;
+        --error-bg: rgba(239, 68, 68, 0.06);
+        --error-border: rgba(239, 68, 68, 0.15);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html {
+        background-color: var(--bg-primary);
+        border-radius: 16px;
+        overflow: hidden;
+      }
+
+      body {
+        width: 340px;
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        position: relative;
+        overflow: hidden;
+        line-height: 1.4;
+        border-radius: 16px;
+      }
+
+      /* Background Glowing Orbs */
+      .bg-glow-1 {
+        position: absolute;
+        top: -40px;
+        left: -40px;
+        width: 150px;
+        height: 150px;
+        background: radial-gradient(circle, rgba(129, 140, 248, 0.22) 0%, rgba(129, 140, 248, 0) 70%);
+        filter: blur(35px);
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .bg-glow-2 {
+        position: absolute;
+        bottom: -40px;
+        right: -40px;
+        width: 170px;
+        height: 170px;
+        background: radial-gradient(circle, rgba(192, 132, 252, 0.12) 0%, rgba(192, 132, 252, 0) 70%);
+        filter: blur(40px);
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .container {
+        position: relative;
+        z-index: 1;
+        padding: 12px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      /* Header */
+      .header {
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-bottom: 2px;
+      }
+
+      .header-title-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
+
+      .header h1 {
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: -0.6px;
+        background: linear-gradient(135deg, #ffffff 40%, #c7d2fe 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .header-logo {
+        filter: drop-shadow(0 0 8px rgba(129, 140, 248, 0.4));
+      }
+
+      .tab-count {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--card-border);
+        color: #a5b4fc;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 10px;
+        font-weight: 600;
+        text-align: center;
+        align-self: center;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+        letter-spacing: 0.1px;
+      }
+
+      /* Cards */
+      .card {
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 12px;
+        padding: 10px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .card:hover {
+        border-color: var(--card-hover-border);
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      /* Form Styles */
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .input-label {
+        font-size: 9.5px;
+        font-weight: 700;
+        color: var(--accent-purple);
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        display: block;
+      }
+
+      input[type="text"], input[type="password"] {
+        width: 100%;
+        padding: 8px 10px;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        font-size: 12px;
+        color: white;
+        transition: all 0.25s ease;
+        font-family: 'JetBrains Mono', monospace;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+      }
+
+      input[type="text"]::placeholder, input[type="password"]::placeholder {
+        color: rgba(255, 255, 255, 0.25);
+        font-family: sans-serif;
+        font-size: 11.5px;
+      }
+
+      input[type="text"]:focus, input[type="password"]:focus {
+        outline: none;
+        border-color: var(--accent-purple);
+        background: rgba(255, 255, 255, 0.05);
+        box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.25), inset 0 2px 4px rgba(0,0,0,0.05);
+      }
+
+      .input-hint {
+        color: #64748b;
+        font-size: 10.5px;
+        display: block;
+        line-height: 1.4;
+      }
+
+      .input-hint a {
+        color: var(--accent-purple);
+        text-decoration: none;
+        font-weight: 600;
+        transition: color 0.2s;
+      }
+
+      .input-hint a:hover {
+        color: #a5b4fc;
+        text-decoration: underline;
+      }
+
+      /* Status Cards */
+      .status-card {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .status-card.connected {
+        background: var(--success-bg);
+        border-color: var(--success-border);
+        box-shadow: 0 8px 32px 0 rgba(16, 185, 129, 0.04);
+      }
+
+      .status-card.error {
+        background: var(--error-bg);
+        border-color: var(--error-border);
+        box-shadow: 0 8px 32px 0 rgba(239, 68, 68, 0.04);
+      }
+
+      .status-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 700;
+        font-size: 12px;
+        letter-spacing: -0.1px;
+      }
+
+      .status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        position: relative;
+      }
+
+      .connected .status-dot {
+        background: var(--success);
+        box-shadow: 0 0 8px var(--success);
+        animation: pulse-green 2.5s infinite;
+      }
+
+      .error .status-dot {
+        background: var(--error);
+        box-shadow: 0 0 8px var(--error);
+      }
+
+      @keyframes pulse-green {
+        0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+        70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+      }
+
+      .status-text {
+        font-size: 11.5px;
+        line-height: 1.4;
+      }
+
+      .connected .status-text {
+        color: #a7f3d0;
+      }
+
+      .error .status-text {
+        color: #fca5a5;
+      }
+
+      /* Buttons */
+      button {
+        padding: 9px 14px;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 12.5px;
+        cursor: pointer;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        letter-spacing: -0.1px;
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+        color: white;
+        box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
+      }
+
+      .btn-primary:hover:not(:disabled) {
+        transform: translateY(-1.5px);
+        box-shadow: 0 6px 24px rgba(99, 102, 241, 0.45);
+        background: linear-gradient(135deg, #6c6ef2 0%, #b062f8 100%);
+      }
+
+      .btn-primary:active:not(:disabled) {
+        transform: translateY(0.5px);
+        box-shadow: 0 2px 10px rgba(99, 102, 241, 0.25);
+      }
+
+      .btn-primary:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        transform: none !important;
+        box-shadow: none !important;
+        background: rgba(255, 255, 255, 0.08) !important;
+        color: rgba(255, 255, 255, 0.3) !important;
+        border: 1px solid rgba(255, 255, 255, 0.04);
+      }
+
+      .btn-secondary {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        color: #e2e8f0;
+      }
+
+      .btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: rgba(255, 255, 255, 0.12);
+        color: white;
+      }
+
+      .btn-secondary:active {
+        transform: translateY(0.5px);
+      }
+
+      /* Open in Notion Button Override */
+      .secondary-btn {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        color: #e2e8f0;
+      }
+
+      .secondary-btn:hover {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: rgba(255, 255, 255, 0.12);
+        color: white;
+      }
+
+      .btn-search-trigger {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.25);
+      }
+
+      .btn-search-trigger:hover {
+        transform: translateY(-1.5px);
+        background: linear-gradient(135deg, #12c98d 0%, #06a977 100%);
+        box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
+      }
+
+      .btn-danger {
+        background: rgba(239, 68, 68, 0.06);
+        border: 1px solid rgba(239, 68, 68, 0.15);
+        color: #fca5a5;
+      }
+
+      .btn-danger:hover {
+        background: rgba(239, 68, 68, 0.15);
+        border-color: rgba(239, 68, 68, 0.25);
+        color: white;
+      }
+
+      /* Button Group Layouts */
+      .button-group {
+        display: flex;
+        gap: 10px;
+        flex-direction: column;
+      }
+
+      .button-group.horizontal {
+        flex-direction: row;
+      }
+
+      .button-group.horizontal button {
+        flex: 1;
+        padding: 8px;
+        font-size: 10.5px;
+        border-radius: 8px;
+      }
+
+      /* Checkbox Toggle Layout */
+      .checkbox-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .checkbox-card input[type="checkbox"] {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 18px;
+        height: 18px;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        cursor: pointer;
+        position: relative;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .checkbox-card input[type="checkbox"]:checked {
+        background: var(--accent-purple);
+        border-color: var(--accent-purple);
+        box-shadow: 0 0 8px rgba(129, 140, 248, 0.4);
+      }
+
+      .checkbox-card input[type="checkbox"]:checked::after {
+        content: '';
+        width: 4px;
+        height: 7px;
+        border: solid white;
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg) translate(-0.5px, -0.5px);
+        position: absolute;
+      }
+
+      .checkbox-card span {
+        font-size: 11.5px;
+        color: #cbd5e1;
+        font-weight: 550;
+        line-height: 1.4;
+      }
+
+      /* Info Box */
+      .info-box {
+        background: rgba(129, 140, 248, 0.04);
+        border: 1px solid rgba(129, 140, 248, 0.1);
+        border-radius: 12px;
+        padding: 10px;
+        color: #cbd5e1;
+        font-size: 11px;
+        line-height: 1.5;
+      }
+
+      .info-box strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 11.5px;
+        color: #e2e8f0;
+      }
+
+      /* Progress Bar Styles */
+      .progress-container {
+        width: 100%;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 3px;
+        overflow: hidden;
+        margin-top: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.04);
+      }
+
+      .progress-bar {
+        width: 0%;
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent-purple), var(--accent-pink));
+        border-radius: 3px;
+        transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 0 8px rgba(129, 140, 248, 0.5);
+      }
+
+      .progress-text {
+        font-size: 11px;
+        color: var(--text-secondary);
+        font-family: 'JetBrains Mono', monospace;
+        text-align: right;
+        margin-top: 4px;
+      }
+
+      /* Search Box and Results */
+      .search-box {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 12px;
+        padding: 3px;
+        display: flex;
+        gap: 4px;
+        margin-top: 6px;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+      }
+
+      .search-input {
+        flex: 1;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 6px 10px !important;
+        font-size: 12px !important;
+        color: white !important;
+        font-family: inherit !important;
+      }
+
+      .search-input::placeholder {
+        color: rgba(255, 255, 255, 0.2) !important;
+      }
+
+      .btn-search {
+        padding: 6px 10px;
+        background: var(--success);
+        color: white;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      .btn-search:hover {
+        background: #12c98d;
+      }
+
+      .results {
+        background: rgba(0, 0, 0, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        margin-top: 6px;
+        padding: 6px;
+        max-height: 160px;
+        overflow-y: auto;
+      }
+
+      /* Scrollbar styles */
+      .results::-webkit-scrollbar, .tabs-list::-webkit-scrollbar, .history-list::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .results::-webkit-scrollbar-track, .tabs-list::-webkit-scrollbar-track, .history-list::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      .results::-webkit-scrollbar-thumb, .tabs-list::-webkit-scrollbar-thumb, .history-list::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+      }
+
+      .results::-webkit-scrollbar-thumb:hover, .tabs-list::-webkit-scrollbar-thumb:hover, .history-list::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.16);
+      }
+
+      .result-item {
+        background: rgba(255, 255, 255, 0.01);
+        border: 1px solid rgba(255, 255, 255, 0.03);
+        padding: 6px 8px;
+        border-radius: 8px;
+        margin-bottom: 4px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+      }
+
+      .result-item:hover {
+        background: rgba(255, 255, 255, 0.04);
+        border-color: rgba(255, 255, 255, 0.08);
+        transform: translateX(2px);
+      }
+
+      .result-title {
+        color: #f1f5f9;
+        font-weight: 600;
+        font-size: 11.5px;
+        margin-bottom: 4px;
+      }
+
+      .result-summary {
+        color: #94a3b8;
+        font-size: 10.5px;
+        line-height: 1.4;
+      }
+
+      /* Spinner */
+      .spinner {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        border-top-color: var(--accent-purple);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      .loading-text {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: #a5b4fc;
+        font-weight: 600;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      .section {
+        display: none;
+      }
+
+      .section.active {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      /* Visual Analytics and Header Action Styling */
+      .icon-btn-header {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        color: var(--text-secondary);
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        padding: 0;
+        outline: none;
+      }
+
+      .icon-btn-header:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.16);
+        color: var(--accent-purple);
+        transform: translateY(-1px);
+      }
+
+      .icon-btn-header:active {
+        transform: translateY(0);
+      }
+
+      /* Offline Indicator pulsing dot */
+      .offline-dot {
+        width: 8px;
+        height: 8px;
+        background-color: #fbbf24;
+        border-radius: 50%;
+        display: inline-block;
+        box-shadow: 0 0 8px #fbbf24;
+        animation: pulse-dot 1.5s infinite ease-in-out;
+        margin-left: 6px;
+      }
+
+      @keyframes pulse-dot {
+        0%, 100% { opacity: 0.4; transform: scale(0.9); }
+        50% { opacity: 1; transform: scale(1.2); }
+      }
+
+      /* Collection Dropdown selector styling */
+      .form-input {
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .form-input:focus {
+        border-color: var(--accent-purple) !important;
+        box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.15);
+      }
+      
+      /* Snooze active card */
+      .snooze-choice-btn {
+        flex: 1;
+        min-height: 28px;
+        font-size: 11px;
+        padding: 4px 8px;
+        border-radius: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Background glows for modern futuristic feel -->
+    <div class="bg-glow-1"></div>
+    <div class="bg-glow-2"></div>
+
+    <div class="container">
+      <!-- Header -->
+      <div class="header">
+        <div class="header-title-container">
+          <img class="header-logo" src="../../assets/images/icon-48.png" width="26" height="26" style="border-radius: 6px; border: 1.5px solid rgba(139, 92, 246, 0.4); object-fit: cover;" />
+          <h1 style="display: flex; align-items: center;">Tab Summarizer <span id="offlineIndicator" class="offline-dot hidden" title="Offline Cache Mode"></span></h1>
+        </div>
+        <div class="header-actions" style="display: flex; align-items: center; gap: 8px;">
+          <!-- Visual Analytics Icon Button -->
+          <button class="icon-btn-header" id="analyticsBtn" title="View Reading Analytics">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+          </button>
+          <div class="tab-count" id="tabCount">Loading tabs...</div>
+        </div>
+      </div>
+
+      <!-- Pre-Connection Section -->
+      <div class="section active" id="preConnectSection">
+        <div class="card">
+          <h2 style="font-size: 15px; font-weight: 700; color: #ffffff; letter-spacing: -0.2px">
+            Connect to Notion
+          </h2>
+          <p style="font-size: 12.5px; color: var(--text-secondary); line-height: 1.6">
+            Enter your Notion integration token and database ID to get started.
+            We'll save them securely and you won't need to enter them again.
+          </p>
+        </div>
+
+        <div class="card">
+          <div style="display: flex; flex-direction: column; gap: 14px">
+            <div class="form-group">
+              <label class="input-label" for="tokenInput">
+                Notion Integration Token
+              </label>
+              <input
+                type="password"
+                id="tokenInput"
+                placeholder="ntn_34557878..."
+                autocomplete="off"
+              />
+              <small class="input-hint">
+                Get from: <a href="https://notion.so/profile/integrations" target="_blank">notion.so/profile/integrations</a>
+              </small>
+            </div>
+
+            <div class="form-group">
+              <label class="input-label" for="dbIdInput">
+                Notion Database ID
+              </label>
+              <input
+                type="text"
+                id="dbIdInput"
+                placeholder="36080bcf60f180ca8..."
+                autocomplete="off"
+              />
+              <small class="input-hint">
+                Find in database URL between the trailing slash / and ?
+              </small>
+            </div>
+          </div>
+        </div>
+
+        <div class="button-group">
+          <button class="btn-primary" id="connectBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+            Connect to Notion
+          </button>
+        </div>
+
+        <div class="info-box">
+          <strong>One-time setup:</strong>
+          Paste your integration token and database ID once. We'll save them
+          securely in your browser. After this, just click "Archive Tabs" and
+          you're done!
+        </div>
+      </div>
+
+      <!-- Post-Connection Section -->
+      <div class="section" id="postConnectSection">
+        <!-- Status Card -->
+        <div class="card status-card connected" id="statusCard">
+          <div class="status-header">
+            <div class="status-dot"></div>
+            <span>Connected to Notion</span>
+          </div>
+          <div class="status-text">
+            Your Notion integration is ready. Click "Archive Tabs" to start
+            saving your research.
+          </div>
+        </div>
+
+        <!-- Archive Button (Large) -->
+        <button
+          class="btn-primary"
+          id="archiveBtn"
+          style="min-height: 52px; font-size: 15px;"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          Archive Tabs
+        </button>
+
+        <div class="button-group horizontal" style="margin-top: -4px; margin-bottom: 4px;">
+          <!-- Snooze Active Tab Button -->
+          <button class="btn-secondary" id="snoozeActiveTabBtn" style="flex: 1; min-height: 40px; font-size: 12.5px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            Snooze Active
+          </button>
+          <!-- View Preview & Selection Button -->
+          <button class="btn-secondary" id="previewSelectBtn" style="flex: 1; min-height: 40px; font-size: 12.5px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            Preview Tabs
+          </button>
+        </div>
+
+        <!-- Snooze Delay Selection Overlay -->
+        <div id="snoozeActiveDropdown" class="card hidden" style="padding: 12px; margin-top: -4px; margin-bottom: 4px;">
+          <span style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 600;">Choose snooze duration:</span>
+          <div class="button-group horizontal" style="gap: 6px;">
+            <button class="btn-secondary snooze-choice-btn" data-mins="10">10 mins</button>
+            <button class="btn-secondary snooze-choice-btn" data-mins="60">1 hour</button>
+            <button class="btn-secondary snooze-choice-btn" data-mins="1440">Tomorrow</button>
+          </div>
+        </div>
+
+
+
+        <!-- Search Button -->
+        <button
+          class="btn-secondary btn-search-trigger"
+          id="searchBtn"
+          style="min-height: 46px; font-size: 13.5px;"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          Search Archived Tabs
+        </button>
+        
+        <div id="searchContainer" class="hidden">
+          <div class="search-box">
+            <input
+              type="text"
+              class="search-input"
+              id="searchInput"
+              placeholder="Search archived tabs..."
+              autocomplete="off"
+            />
+            <button class="btn-search" id="performSearchBtn">Search</button>
+          </div>
+
+          <div class="results hidden" id="results">
+            <div id="resultsList"></div>
+          </div>
+        </div>
+
+        <!-- Options -->
+        <div class="card" style="padding: 14px 16px;">
+          <label class="checkbox-card">
+            <input
+              type="checkbox"
+              id="closeAfterArchive"
+            />
+            <span>Close tabs after archiving (recommended)</span>
+          </label>
+        </div>
+
+        <!-- Database Maintenance Card -->
+        <div class="card" style="padding: 14px 16px; border: 1px solid rgba(239, 68, 68, 0.15); display: flex; flex-direction: column; gap: 8px;">
+          <div style="font-size: 11px; font-weight: 700; color: #fca5a5; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"/></svg>
+            Database Clean Up
+          </div>
+          <p style="font-size: 11.5px; color: var(--text-secondary); line-height: 1.4;">Keep your workspace clean by removing older, unused or stale pages from your Notion database.</p>
+          <button class="action-btn secondary-btn" id="purgeStaleBtn" style="border: 1px solid rgba(239, 68, 68, 0.2); color: #fca5a5; font-size: 11.5px; font-weight: 700; padding: 8px 12px; border-radius: 8px; cursor: pointer; background: transparent; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"></path></svg>
+            Purge Stale Pages (>30 Days)
+          </button>
+        </div>
+
+        <!-- Status Messages with Progress -->
+        <div
+          class="card hidden"
+          id="archiveStatus"
+          style="border-left: 3px solid var(--accent-purple);"
+        >
+          <div class="loading-text">
+            <div class="spinner"></div>
+            <span id="statusMessage">Processing...</span>
+          </div>
+          <!-- Progress Bar -->
+          <div class="progress-container">
+            <div id="progressBar" class="progress-bar"></div>
+          </div>
+          <!-- Progress Text -->
+          <div id="progressText" class="progress-text">
+            0/0 tabs processed
+          </div>
+        </div>
+
+        <!-- Settings/Disconnect -->
+        <div class="button-group horizontal">
+          <button class="btn-secondary" id="editSettingsBtn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.5 1z"></path></svg>
+            Settings
+          </button>
+          <button id="openNotionBtn" class="secondary-btn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+            Notion DB
+          </button>
+          <button class="btn-danger" id="disconnectBtn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+            Disconnect
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="../scripts/utils/auth.js" defer></script>
+    <script src="../scripts/popup/popup-new.js" defer></script>
+  </body>
+</html>

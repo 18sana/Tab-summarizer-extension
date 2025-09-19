@@ -1,0 +1,18 @@
+<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" fill="url(#grad2)" rx="20"/>
+  <g transform="translate(64, 64)">
+    <!-- Notebook icon -->
+    <rect x="-40" y="-40" width="80" height="80" fill="none" stroke="white" stroke-width="4" rx="6"/>
+    <line x1="-40" y1="-16" x2="40" y2="-16" stroke="white" stroke-width="4" stroke-linecap="round"/>
+    <line x1="-40" y1="8" x2="40" y2="8" stroke="white" stroke-width="4" stroke-linecap="round"/>
+    <line x1="-40" y1="32" x2="40" y2="32" stroke="white" stroke-width="4" stroke-linecap="round"/>
+    <!-- Bookmark corner -->
+    <polygon points="-40,-40 -20,-20 -40,-20" fill="white"/>
+  </g>
+</svg>

@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tab Summarizer: Reading Analytics Dashboard</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    :root {
+      --bg-primary: #0a0814;
+      --card-bg: rgba(255, 255, 255, 0.03);
+      --card-border: rgba(255, 255, 255, 0.06);
+      --text-primary: #ffffff;
+      --text-secondary: #94a3b8;
+      --accent-purple: #818cf8;
+      --accent-pink: #c084fc;
+      --accent-teal: #2dd4bf;
+      --success: #10b981;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+      padding-bottom: 60px;
+    }
+
+    /* Ambient Glowing Orbs */
+    .orb-1 {
+      position: absolute;
+      top: -10%;
+      left: 10%;
+      width: 40vw;
+      height: 40vw;
+      background: radial-gradient(circle, rgba(129, 140, 248, 0.08) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+      filter: blur(80px);
+    }
+
+    .orb-2 {
+      position: absolute;
+      bottom: 10%;
+      right: -5%;
+      width: 45vw;
+      height: 45vw;
+      background: radial-gradient(circle, rgba(192, 132, 252, 0.06) 0%, transparent 75%);
+      pointer-events: none;
+      z-index: 0;
+      filter: blur(100px);
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 40px 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Dashboard Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 40px;
+    }
+
+    .header-logo-title {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .logo-glow {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-glow::after {
+      content: '';
+      position: absolute;
+      width: 32px;
+      height: 32px;
+      background: rgba(129, 140, 248, 0.4);
+      border-radius: 50%;
+      filter: blur(10px);
+      z-index: -1;
+    }
+
+    .header h1 {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.8px;
+      background: linear-gradient(135deg, #ffffff 30%, #a5b4fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    .btn-notion-db {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 10px 18px;
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      backdrop-filter: blur(12px);
+    }
+
+    .btn-notion-db:hover {
+      background: rgba(255, 255, 255, 0.07);
+      border-color: rgba(255, 255, 255, 0.15);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    }
+
+    /* Grid Layout */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .grid-span-2 {
+      grid-column: span 2;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 28px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+      transition: border-color 0.3s ease;
+    }
+
+    .card:hover {
+      border-color: var(--card-hover-border);
+    }
+
+    /* Hero Stats Card */
+    .hero-stats-wrapper {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .stat-box {
+      text-align: center;
+      padding: 16px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.015);
+      border: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .stat-box .label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 8px;
+    }
+
+    .stat-box .value {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      background: linear-gradient(135deg, #ffffff 40%, #c084fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 4px;
+    }
+
+    .stat-box.highlight .value {
+      background: linear-gradient(135deg, #818cf8 30%, #2dd4bf 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 20px rgba(129, 140, 248, 0.2);
+    }
+
+    .stat-box .desc {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    /* Section Headings */
+    .card-title-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .card h3 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card h3 svg {
+      color: var(--accent-purple);
+    }
+
+    /* Category bar progress meters */
+    .category-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .category-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .category-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12.5px;
+      font-weight: 500;
+    }
+
+    .category-name {
+      color: #e2e8f0;
+    }
+
+    .category-count {
+      color: var(--text-secondary);
+    }
+
+    .meter-container {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .meter-bar {
+      height: 100%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, var(--accent-purple) 0%, var(--accent-pink) 100%);
+      width: 0;
+      transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Top Domains list */
+    .domain-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .domain-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.015);
+      border: 1px solid rgba(255, 255, 255, 0.03);
+      border-radius: 12px;
+    }
+
+    .domain-name-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      max-width: 80%;
+    }
+
+    .domain-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.05);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--accent-teal);
+    }
+
+    .domain-name {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #f1f5f9;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .domain-count-pill {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent-teal);
+      background: rgba(45, 212, 191, 0.08);
+      border: 1px solid rgba(45, 212, 191, 0.15);
+      padding: 4px 8px;
+      border-radius: 99px;
+    }
+
+    /* Empty state */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 0;
+      text-align: center;
+    }
+
+    .empty-state svg {
+      color: var(--text-secondary);
+      opacity: 0.5;
+      margin-bottom: 16px;
+    }
+
+    .empty-state h4 {
+      font-size: 16px;
+      margin-bottom: 6px;
+    }
+
+    .empty-state p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      max-width: 260px;
+    }
+
+    /* Animations */
+    @keyframes pulse {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 0.8; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Glowing backdrops -->
+  <div class="orb-1"></div>
+  <div class="orb-2"></div>
+
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-logo-title">
+        <div class="logo-glow">
+          <svg width="34" height="34" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="db-logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#818cf8" />
+                <stop offset="100%" stop-color="#c084fc" />
+              </linearGradient>
+            </defs>
+            <rect width="48" height="48" rx="12" fill="url(#db-logo-grad)" />
+            <rect x="14" y="14" width="20" height="20" rx="4" fill="#0a0814" opacity="0.9" />
+            <line x1="19" y1="20" x2="29" y2="20" stroke="url(#db-logo-grad)" stroke-width="2.5" stroke-linecap="round" />
+            <line x1="19" y1="25" x2="25" y2="25" stroke="url(#db-logo-grad)" stroke-width="2.5" stroke-linecap="round" />
+            <path d="M31 26 L32.5 29 L35.5 30 L32.5 31 L31 34 L29.5 31 L26.5 30 L29.5 29 Z" fill="#2dd4bf" />
+          </svg>
+        </div>
+        <div>
+          <h1>Research & Reading Analytics</h1>
+          <p>Explore your learning timeline and knowledge distribution</p>
+        </div>
+      </div>
+      <button class="btn-notion-db" id="openNotionDashboard">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        Open Notion Database
+      </button>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="dashboard-grid">
+      
+      <!-- HERO STATS (Spans 2 columns) -->
+      <div class="card grid-span-2">
+        <div class="hero-stats-wrapper">
+          
+          <div class="stat-box">
+            <div class="label">Total Pages Saved</div>
+            <div class="value" id="statTotalSaved">0</div>
+            <div class="desc">archived items in Notion</div>
+          </div>
+          
+          <div class="stat-box highlight">
+            <div class="label">Reading Time Saved</div>
+            <div class="value" id="statTimeSaved">0m</div>
+            <div class="desc">hours of raw reading bypassed</div>
+          </div>
+
+          <div class="stat-box">
+            <div class="label">Total Unique Domains</div>
+            <div class="value" id="statUniqueDomains">0</div>
+            <div class="desc">different search sources</div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Left Column: Category Distribution -->
+      <div class="card" id="categoriesCard">
+        <div class="card-title-container">
+          <h3>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></svg>
+            Knowledge Categories
+          </h3>
+        </div>
+        <div class="category-list" id="categoryListContainer">
+          <!-- Filled dynamically by JavaScript -->
+          <div class="empty-state">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+            <h4>No Categories Analyzed</h4>
+            <p>Archive some pages first using the extension popup to construct charts.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Top Domains -->
+      <div class="card" id="domainsCard">
+        <div class="card-title-container">
+          <h3>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+            Top Research Sources
+          </h3>
+        </div>
+        <div class="domain-list" id="domainListContainer">
+          <!-- Filled dynamically by JavaScript -->
+          <div class="empty-state">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            <h4>No Source Domains Found</h4>
+            <p>Once you archive tabs, your top research websites will appear here.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="../scripts/pages/analytics.js"></script>
+</body>
+</html>

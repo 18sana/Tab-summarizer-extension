@@ -1,0 +1,61 @@
+{
+  "manifest_version": 3,
+  "name": "Tab Summarizer",
+  "version": "2.1.0",
+  "description": "AI-powered tab archiving with smart categorization and Notion integration",
+  "permissions": [
+    "tabs",
+    "scripting",
+    "activeTab",
+    "storage",
+    "alarms",
+    "contextMenus",
+    "notifications"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_popup": "src/pages/popup-new.html",
+    "default_title": "Tab Summarizer",
+    "default_icon": {
+      "16": "assets/images/icon-16.png",
+      "24": "assets/images/icon-32.png",
+      "32": "assets/images/icon-32.png",
+      "48": "assets/images/icon-48.png"
+    }
+  },
+  "background": {
+    "service_worker": "src/scripts/background/background.js",
+    "type": "module"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/pages/search.html",
+        "src/scripts/pages/search.js",
+        "src/pages/tab-preview.html",
+        "src/scripts/pages/tab-preview.js",
+        "src/pages/archive-history.html",
+        "src/scripts/pages/archive-history.js",
+        "src/scripts/utils/duplicate-detection.js",
+        "src/scripts/utils/domain-tagging.js",
+        "src/pages/analytics.html",
+        "src/scripts/pages/analytics.js"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://claude.ai/*"],
+      "js": ["src/scripts/content/content-script.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "icons": {
+    "16": "assets/images/icon-16.png",
+    "48": "assets/images/icon-48.png",
+    "128": "assets/images/icon-128.png"
+  }
+}
