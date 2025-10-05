@@ -2,14 +2,11 @@ name: Project CI
 
 on:
   push:
-    branches:
-      - main
-
   pull_request:
-    branches:
-      - main
 
 jobs:
   ai-monitor:
     uses: 18sana/ai-cicd-template/.github/workflows/ai-cicd-monitor.yml@main
+    with:
+      working-directory: .
     secrets: inherit
