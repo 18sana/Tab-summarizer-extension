@@ -1,0 +1,15 @@
+{
+  "name": "tab-summarizer-extension",
+  "version": "2.1.0",
+  "description": "AI-powered tab archiving with smart categorization and Notion integration",
+  "scripts": {
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "keywords": [
+    "extension",
+    "chrome",
+    "tab-summarizer"
+  ],
+  "author": "Sana Asiwal",
+  "license": "ISC"
+}
