@@ -3,7 +3,7 @@
   "version": "2.1.0",
   "description": "AI-powered tab archiving with smart categorization and Notion integration",
   "scripts": {
-    "test": "echo \"No tests specified\" && exit 0"
+    "test": "echo \"Intentional failure to test CI\" && exit 1"
   },
   "keywords": [
     "extension",
