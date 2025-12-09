@@ -163,6 +163,14 @@ async function handleArchiveTabs(request, sendResponse) {
           uniqueTabs.push(tab);
         } else {
           console.log(`Skipping duplicate: ${tab.url}`);
+          
+          // Check if there are newly added highlights that need to be appended to the existing Notion page
+          const highlights = await getHighlightsForUrl(tab.url);
+          if (highlights && highlights.length > 0) {
+            console.log(`Found new highlights for duplicate tab. Appending to existing Notion page...`);
+            await appendHighlightsToExistingNotionPage(duplicateResult.notionPageId, highlights, notionToken);
+            await clearHighlightsForUrl(tab.url);
+          }
         }
       } catch (error) {
         console.warn("Duplicate check failed:", error);
@@ -990,5 +998,47 @@ ${itemsText}`;
   } catch (error) {
     console.error("Semantic search parser failed. Raw response:", content);
     throw new Error("AI returned invalid JSON formatting for semantic search results");
+  }
+}
+
+async function appendHighlightsToExistingNotionPage(pageId, highlights, notionToken) {
+  try {
+    const body = {
+      children: [
+        {
+          object: "block",
+          type: "heading_2",
+          heading_2: {
+            rich_text: [{ type: "text", text: { content: "New Highlighted Notes & Quotes" } }]
+          }
+        },
+        ...highlights.map(text => ({
+          object: "block",
+          type: "quote",
+          quote: {
+            rich_text: [{ type: "text", text: { content: text } }]
+          }
+        }))
+      ]
+    };
+
+    const response = await fetch(`https://api.notion.com/v1/blocks/${pageId}/children`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${notionToken}`,
+        "Content-Type": "application/json",
+        "Notion-Version": "2022-06-28",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.error("Failed to append highlights to existing page:", error);
+    } else {
+      console.log("Successfully appended new highlights to existing Notion page.");
+    }
+  } catch (err) {
+    console.error("Error appending highlights to existing page:", err);
   }
 }
