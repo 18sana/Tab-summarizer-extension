@@ -1035,8 +1035,20 @@ async function appendHighlightsToExistingNotionPage(pageId, highlights, notionTo
     if (!response.ok) {
       const error = await response.json();
       console.error("Failed to append highlights to existing page:", error);
+      chrome.notifications.create({
+        type: "basic",
+        iconUrl: "../../assets/images/icon-48.png",
+        title: "Error Updating Notes",
+        message: `Failed to update Notion: ${error.message}`
+      });
     } else {
       console.log("Successfully appended new highlights to existing Notion page.");
+      chrome.notifications.create({
+        type: "basic",
+        iconUrl: "../../assets/images/icon-48.png",
+        title: "✓ Notes Updated",
+        message: `Appended new highlights to your existing Notion archive.`
+      });
     }
   } catch (err) {
     console.error("Error appending highlights to existing page:", err);
