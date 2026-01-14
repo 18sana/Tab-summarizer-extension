@@ -34,7 +34,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         // Show context notification
         chrome.notifications.create({
           type: "basic",
-          iconUrl: "../../assets/images/icon-48.png",
+          iconUrl: "assets/images/icon-48.png",
           title: "Note Captured!",
           message: `Saved note will be archived with this tab.`
         });
@@ -54,7 +54,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
         // Fire snooze reminder notification
         chrome.notifications.create({
           type: "basic",
-          iconUrl: "../../assets/images/icon-48.png",
+          iconUrl: "assets/images/icon-48.png",
           title: "Snooze Reminder!",
           message: `Time to read: "${payload.title}"`
         });
@@ -659,7 +659,7 @@ async function processOfflineQueue() {
           
           chrome.notifications.create({
             type: "basic",
-            iconUrl: "../../assets/images/icon-48.png",
+            iconUrl: "assets/images/icon-48.png",
             title: "✓ Auto-Sync Complete!",
             message: `Successfully synchronized ${successCount} offline tabs to Notion.`
           });
@@ -1037,7 +1037,7 @@ async function appendHighlightsToExistingNotionPage(pageId, highlights, notionTo
       console.error("Failed to append highlights to existing page:", error);
       chrome.notifications.create({
         type: "basic",
-        iconUrl: "../../assets/images/icon-48.png",
+        iconUrl: "assets/images/icon-48.png",
         title: "Error Updating Notes",
         message: `Failed to update Notion: ${error.message}`
       });
@@ -1045,7 +1045,7 @@ async function appendHighlightsToExistingNotionPage(pageId, highlights, notionTo
       console.log("Successfully appended new highlights to existing Notion page.");
       chrome.notifications.create({
         type: "basic",
-        iconUrl: "../../assets/images/icon-48.png",
+        iconUrl: "assets/images/icon-48.png",
         title: "✓ Notes Updated",
         message: `Appended new highlights to your existing Notion archive.`
       });
