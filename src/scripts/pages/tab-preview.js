@@ -1,3 +1,5 @@
+import { DuplicateDetection } from "../utils/duplicate-detection.js";
+
 document.addEventListener("DOMContentLoaded", async () => {
   const tabListContainer = document.getElementById("tabListContainer");
   const selectAllBtn = document.getElementById("selectAllBtn");
@@ -36,6 +38,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
       }
 
+      // Fetch stored highlights/notes for pre-population
+      const storageResult = await new Promise((resolve) => chrome.storage.local.get(["url_highlights"], resolve));
+      const urlHighlights = storageResult.url_highlights || {};
+
       // Fetch body content from each tab in parallel
       loadedTabs = await Promise.all(validTabs.map(async (tab) => {
         let bodyText = "";
@@ -49,6 +55,9 @@ document.addEventListener("DOMContentLoaded", async () => {
           console.warn(`Could not fetch body text for tab ${tab.id}:`, e);
         }
 
+        const normalizedUrl = DuplicateDetection.normalizeUrl(tab.url);
+        const highlights = urlHighlights[normalizedUrl] || [];
+
         return {
           id: tab.id,
           url: tab.url,
@@ -57,7 +66,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           favicon: tab.favIconUrl || "",
           checked: true,
           customTitle: tab.title,
-          notes: ""
+          notes: highlights.join("\n")
         };
       }));
 
@@ -139,13 +148,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // 4. Sync Notes to local storage Highlights
   async function syncNotesToStorage(url, text) {
+    const normalizedUrl = DuplicateDetection.normalizeUrl(url);
     return new Promise((resolve) => {
       chrome.storage.local.get(["url_highlights"], (result) => {
         const highlights = result.url_highlights || {};
         if (text.trim() === "") {
-          delete highlights[url];
+          delete highlights[normalizedUrl];
         } else {
-          highlights[url] = [text.trim()];
+          highlights[normalizedUrl] = [text.trim()];
         }
         chrome.storage.local.set({ url_highlights: highlights }, resolve);
       });

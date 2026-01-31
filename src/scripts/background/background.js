@@ -22,7 +22,7 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === "add_to_tab_archive" && info.selectionText) {
     const selectedText = info.selectionText;
-    const url = tab.url;
+    const url = DuplicateDetection.normalizeUrl(tab.url);
     
     chrome.storage.local.get(["url_highlights"], (result) => {
       const highlights = result.url_highlights || {};
@@ -34,7 +34,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         // Show context notification
         chrome.notifications.create({
           type: "basic",
-          iconUrl: "assets/images/icon-48.png",
+          iconUrl: chrome.runtime.getURL("assets/images/icon-48.png"),
           title: "Note Captured!",
           message: `Saved note will be archived with this tab.`
         });
@@ -54,7 +54,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
         // Fire snooze reminder notification
         chrome.notifications.create({
           type: "basic",
-          iconUrl: "assets/images/icon-48.png",
+          iconUrl: chrome.runtime.getURL("assets/images/icon-48.png"),
           title: "Snooze Reminder!",
           message: `Time to read: "${payload.title}"`
         });
@@ -127,56 +127,51 @@ async function handleArchiveTabs(request, sendResponse) {
       );
     }
 
-    // Filter out blocked/sensitive domains
-    const safeTabsWithContent = tabsWithContent.filter(
-      (t) => !isBlockedDomain(t.url),
-    );
+    // Filter out blocked/sensitive domains & Normalize URLs early
+    const safeTabsWithContent = tabsWithContent
+      .filter((t) => !isBlockedDomain(t.url))
+      .map((t) => ({
+        ...t,
+        url: DuplicateDetection.normalizeUrl(t.url),
+      }));
+
     // Remove duplicate OPEN tabs
     const seenUrls = new Set();
-
     const deduplicatedTabs = safeTabsWithContent.filter((tab) => {
-      const normalizedUrl = DuplicateDetection.normalizeUrl(tab.url);
-
-      if (seenUrls.has(normalizedUrl)) {
+      if (seenUrls.has(tab.url)) {
         console.log(`Skipping duplicate open tab: ${tab.url}`);
         return false;
       }
-
-      seenUrls.add(normalizedUrl);
+      seenUrls.add(tab.url);
       return true;
     });
 
-    console.log(`Checking duplicates for ${deduplicatedTabs.length} tabs...`);
+    console.log(`Checking duplicates for ${deduplicatedTabs.length} tabs in batch query...`);
 
     // Remove duplicates already present in Notion
     const uniqueTabs = [];
+    const urlsToCheck = deduplicatedTabs.map(t => t.url);
+    const duplicateResults = await DuplicateDetection.checkMultipleDuplicatesBatch(
+      urlsToCheck,
+      notionToken,
+      databaseId
+    );
 
     for (const tab of deduplicatedTabs) {
-      try {
-        const duplicateResult = await DuplicateDetection.checkDuplicate(
-          tab.url,
-          notionToken,
-          databaseId,
-        );
+      const duplicateResult = duplicateResults[tab.url];
 
-        if (!duplicateResult.isDuplicate) {
-          uniqueTabs.push(tab);
-        } else {
-          console.log(`Skipping duplicate: ${tab.url}`);
-          
-          // Check if there are newly added highlights that need to be appended to the existing Notion page
-          const highlights = await getHighlightsForUrl(tab.url);
-          if (highlights && highlights.length > 0) {
-            console.log(`Found new highlights for duplicate tab. Appending to existing Notion page...`);
-            await appendHighlightsToExistingNotionPage(duplicateResult.notionPageId, highlights, notionToken);
-            await clearHighlightsForUrl(tab.url);
-          }
-        }
-      } catch (error) {
-        console.warn("Duplicate check failed:", error);
-
-        // Still allow processing if duplicate check fails
+      if (!duplicateResult || !duplicateResult.isDuplicate) {
         uniqueTabs.push(tab);
+      } else {
+        console.log(`Skipping duplicate page already in Notion: ${tab.url}`);
+        
+        // Append any highlights/notes to the existing Notion page instead of creating a new page
+        const highlights = await getHighlightsForUrl(tab.url);
+        if (highlights && highlights.length > 0) {
+          console.log(`Found new highlights for duplicate tab. Appending to existing Notion page...`);
+          await appendHighlightsToExistingNotionPage(duplicateResult.notionPageId, highlights, notionToken);
+          await clearHighlightsForUrl(tab.url);
+        }
       }
     }
 
@@ -561,19 +556,21 @@ async function postSingleToNotion(summary, notionToken, databaseId, customCollec
 
 // Highlights Storage Helpers
 async function getHighlightsForUrl(url) {
+  const normalizedUrl = DuplicateDetection.normalizeUrl(url);
   return new Promise((resolve) => {
     chrome.storage.local.get(["url_highlights"], (result) => {
       const highlights = result.url_highlights || {};
-      resolve(highlights[url] || []);
+      resolve(highlights[normalizedUrl] || []);
     });
   });
 }
 
 async function clearHighlightsForUrl(url) {
+  const normalizedUrl = DuplicateDetection.normalizeUrl(url);
   return new Promise((resolve) => {
     chrome.storage.local.get(["url_highlights"], (result) => {
       const highlights = result.url_highlights || {};
-      delete highlights[url];
+      delete highlights[normalizedUrl];
       chrome.storage.local.set({ url_highlights: highlights }, resolve);
     });
   });
@@ -659,7 +656,7 @@ async function processOfflineQueue() {
           
           chrome.notifications.create({
             type: "basic",
-            iconUrl: "assets/images/icon-48.png",
+            iconUrl: chrome.runtime.getURL("assets/images/icon-48.png"),
             title: "✓ Auto-Sync Complete!",
             message: `Successfully synchronized ${successCount} offline tabs to Notion.`
           });
@@ -1037,7 +1034,7 @@ async function appendHighlightsToExistingNotionPage(pageId, highlights, notionTo
       console.error("Failed to append highlights to existing page:", error);
       chrome.notifications.create({
         type: "basic",
-        iconUrl: "assets/images/icon-48.png",
+        iconUrl: chrome.runtime.getURL("assets/images/icon-48.png"),
         title: "Error Updating Notes",
         message: `Failed to update Notion: ${error.message}`
       });
@@ -1045,7 +1042,7 @@ async function appendHighlightsToExistingNotionPage(pageId, highlights, notionTo
       console.log("Successfully appended new highlights to existing Notion page.");
       chrome.notifications.create({
         type: "basic",
-        iconUrl: "assets/images/icon-48.png",
+        iconUrl: chrome.runtime.getURL("assets/images/icon-48.png"),
         title: "✓ Notes Updated",
         message: `Appended new highlights to your existing Notion archive.`
       });

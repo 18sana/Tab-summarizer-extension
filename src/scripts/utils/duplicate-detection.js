@@ -23,7 +23,7 @@ export const DuplicateDetection = {
             filter: {
               property: "URL",
               url: {
-                equals: url,
+                equals: normalizedUrl,
               },
             },
             page_size: 1,
@@ -62,16 +62,96 @@ export const DuplicateDetection = {
   },
 
   /**
-   * Check multiple URLs at once
+   * Check multiple URLs at once using a single batch query (high performance)
+   */
+  async checkMultipleDuplicatesBatch(urls, token, databaseId) {
+    if (!urls || urls.length === 0) return {};
+
+    try {
+      const normalizedUrls = urls.map(url => this.normalizeUrl(url));
+      const results = {};
+      const chunkSize = 50; // Notion limits: safe threshold for OR conditions
+
+      for (let i = 0; i < normalizedUrls.length; i += chunkSize) {
+        const batchUrls = normalizedUrls.slice(i, i + chunkSize);
+
+        const response = await fetch(
+          `https://api.notion.com/v1/databases/${databaseId}/query`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Notion-Version": "2022-06-28",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              filter: {
+                or: batchUrls.map(url => ({
+                  property: "URL",
+                  url: {
+                    equals: url,
+                  },
+                })),
+              },
+              page_size: 100,
+            }),
+          },
+        );
+
+        if (!response.ok) {
+          console.warn("Failed to check batch duplicates:", response.statusText);
+          continue;
+        }
+
+        const data = await response.json();
+
+        for (const existingPage of data.results) {
+          const pageUrl = this.getPropertyValue(existingPage, "URL");
+          if (pageUrl) {
+            const normalizedPageUrl = this.normalizeUrl(pageUrl);
+            const createdTime = new Date(existingPage.created_time);
+
+            results[normalizedPageUrl] = {
+              isDuplicate: true,
+              url: pageUrl,
+              title: this.getPropertyValue(existingPage, "Name"),
+              archived: this.getPropertyValue(existingPage, "Date-Added"),
+              createdTime: createdTime,
+              daysAgo: this.getDaysAgo(createdTime),
+              notionPageId: existingPage.id,
+              notionUrl: existingPage.url,
+            };
+          }
+        }
+      }
+
+      // Map back to original input list, preserving structure
+      const finalResults = {};
+      urls.forEach(originalUrl => {
+        const norm = this.normalizeUrl(originalUrl);
+        if (results[norm]) {
+          finalResults[originalUrl] = results[norm];
+        } else {
+          finalResults[originalUrl] = { isDuplicate: false };
+        }
+      });
+
+      return finalResults;
+    } catch (error) {
+      console.error("Batch duplicate detection error:", error);
+      const fallback = {};
+      urls.forEach(url => {
+        fallback[url] = { isDuplicate: false, error: true };
+      });
+      return fallback;
+    }
+  },
+
+  /**
+   * Check multiple URLs sequentially (legacy fallback)
    */
   async checkMultipleDuplicates(urls, token, databaseId) {
-    const results = {};
-
-    for (const url of urls) {
-      results[url] = await this.checkDuplicate(url, token, databaseId);
-    }
-
-    return results;
+    return this.checkMultipleDuplicatesBatch(urls, token, databaseId);
   },
 
   /**
@@ -80,17 +160,24 @@ export const DuplicateDetection = {
   normalizeUrl(url) {
     try {
       const urlObj = new URL(url);
+      
       // Remove common tracking params
       const params = new URLSearchParams(urlObj.search);
-      params.delete("utm_source");
-      params.delete("utm_medium");
-      params.delete("utm_campaign");
-      params.delete("utm_content");
+      const trackingParams = [
+        "utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term",
+        "gclid", "fbclid", "s_cid", "campaignid", "adgroupid"
+      ];
+      trackingParams.forEach(p => params.delete(p));
 
       urlObj.search = params.toString();
       urlObj.hash = "";
 
-      // Remove trailing slash
+      // Remove trailing slash from pathname if it's not root "/"
+      if (urlObj.pathname.endsWith("/") && urlObj.pathname !== "/") {
+        urlObj.pathname = urlObj.pathname.slice(0, -1);
+      }
+
+      // Remove trailing slash from the final URL if present
       let normalized = urlObj.toString();
 
       if (normalized.endsWith("/")) {
