@@ -5,18 +5,26 @@ document.addEventListener("keydown", (e) => {
   const activeEl = document.activeElement;
   if (!activeEl) return;
 
-  // Check if this is an input/textarea/contenteditable
+  // Locate the actual editable element (handles child tags inside contenteditable containers)
+  const editableEl = activeEl.closest('[contenteditable="true"]') || 
+                     activeEl.closest('[contenteditable]') || 
+                     (activeEl.isContentEditable ? activeEl : null);
+
   const isInput = activeEl.tagName === "TEXTAREA" || 
                   activeEl.tagName === "INPUT" || 
-                  activeEl.getAttribute("contenteditable") === "true";
+                  editableEl !== null;
 
   if (!isInput) return;
 
   // We want to detect 'Enter' key presses
   if (e.key === "Enter" && !e.shiftKey) {
-    const text = (activeEl.value || activeEl.innerText || "").trim();
+    // Get text from the parent editable element or directly from input/textarea
+    const targetEl = editableEl || activeEl;
+    const rawText = targetEl.value || targetEl.innerText || "";
+    // Strip zero-width spacing and trim whitespaces
+    const cleanText = rawText.replace(/[\u200B-\u200D\uFEFF]/g, "").trim();
 
-    if (text === "/summarize") {
+    if (cleanText === "/summarize") {
       // Prevent the text from being submitted to Claude
       e.preventDefault();
       e.stopPropagation();
@@ -25,9 +33,11 @@ document.addEventListener("keydown", (e) => {
       if (activeEl.tagName === "TEXTAREA" || activeEl.tagName === "INPUT") {
         activeEl.value = "";
       } else {
-        activeEl.innerText = "";
-        // Fire input event to make sure React state updates the field as empty
-        activeEl.dispatchEvent(new Event('input', { bubbles: true }));
+        // Clear all nested paragraphs or text nodes inside contenteditable
+        targetEl.innerHTML = "";
+        targetEl.innerText = "";
+        // Fire input event to make sure React/ProseMirror updates internal state as empty
+        targetEl.dispatchEvent(new Event('input', { bubbles: true }));
       }
 
       // Run our beautiful extension process!
