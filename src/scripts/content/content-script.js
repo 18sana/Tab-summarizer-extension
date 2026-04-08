@@ -46,22 +46,47 @@ document.addEventListener("keydown", (e) => {
   }
 }, true); // Use capture phase to run BEFORE page-level React key event listeners!
 
+function isContextValid() {
+  try {
+    return !!(chrome && chrome.runtime && chrome.runtime.id);
+  } catch (e) {
+    return false;
+  }
+}
+
 function triggerExtensionSummarize() {
+  if (!isContextValid()) {
+    showStatusBubble("❌ Extension reloaded. Please refresh this page.", "error");
+    return;
+  }
+
   showStatusBubble("🤖 Archiving all tabs to Notion...", "info");
 
-  chrome.runtime.sendMessage({ action: "triggerSummarizeFromPage" }, (response) => {
-    if (chrome.runtime.lastError) {
-      showStatusBubble("❌ Extension connection failed. Reload the page.", "error");
-      return;
-    }
+  try {
+    chrome.runtime.sendMessage({ action: "triggerSummarizeFromPage" }, (response) => {
+      let errorOccurred = false;
+      try {
+        if (chrome.runtime.lastError) {
+          showStatusBubble("❌ Extension connection failed. Reload the page.", "error");
+          errorOccurred = true;
+        }
+      } catch (e) {
+        showStatusBubble("❌ Extension context invalidated. Please refresh this page.", "error");
+        errorOccurred = true;
+      }
 
-    if (response && response.success) {
-      const count = response.archived || 0;
-      showStatusBubble(`✓ Successfully summarized & archived ${count} tabs to Notion!`, "success");
-    } else {
-      showStatusBubble(`❌ Failed: ${response?.error || "Unknown error"}`, "error");
-    }
-  });
+      if (errorOccurred) return;
+
+      if (response && response.success) {
+        const count = response.archived || 0;
+        showStatusBubble(`✓ Successfully summarized & archived ${count} tabs to Notion!`, "success");
+      } else {
+        showStatusBubble(`❌ Failed: ${response?.error || "Unknown error"}`, "error");
+      }
+    });
+  } catch (err) {
+    showStatusBubble("❌ Extension context invalidated. Please refresh this page.", "error");
+  }
 }
 
 // Function to show status bubble inside Claude's container
