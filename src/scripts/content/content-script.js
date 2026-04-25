@@ -5,26 +5,18 @@ document.addEventListener("keydown", (e) => {
   const activeEl = document.activeElement;
   if (!activeEl) return;
 
-  // Locate the actual editable element (handles child tags inside contenteditable containers)
-  const editableEl = activeEl.closest('[contenteditable="true"]') || 
-                     activeEl.closest('[contenteditable]') || 
-                     (activeEl.isContentEditable ? activeEl : null);
-
+  // Check if this is an input/textarea/contenteditable
   const isInput = activeEl.tagName === "TEXTAREA" || 
                   activeEl.tagName === "INPUT" || 
-                  editableEl !== null;
+                  activeEl.getAttribute("contenteditable") === "true";
 
   if (!isInput) return;
 
   // We want to detect 'Enter' key presses
   if (e.key === "Enter" && !e.shiftKey) {
-    // Get text from the parent editable element or directly from input/textarea
-    const targetEl = editableEl || activeEl;
-    const rawText = targetEl.value || targetEl.innerText || "";
-    // Strip zero-width spacing and trim whitespaces
-    const cleanText = rawText.replace(/[\u200B-\u200D\uFEFF]/g, "").trim();
+    const text = (activeEl.value || activeEl.innerText || "").trim();
 
-    if (cleanText === "/summarize") {
+    if (text === "/summarize") {
       // Prevent the text from being submitted to Claude
       e.preventDefault();
       e.stopPropagation();
@@ -33,11 +25,9 @@ document.addEventListener("keydown", (e) => {
       if (activeEl.tagName === "TEXTAREA" || activeEl.tagName === "INPUT") {
         activeEl.value = "";
       } else {
-        // Clear all nested paragraphs or text nodes inside contenteditable
-        targetEl.innerHTML = "";
-        targetEl.innerText = "";
-        // Fire input event to make sure React/ProseMirror updates internal state as empty
-        targetEl.dispatchEvent(new Event('input', { bubbles: true }));
+        activeEl.innerText = "";
+        // Fire input event to make sure React state updates the field as empty
+        activeEl.dispatchEvent(new Event('input', { bubbles: true }));
       }
 
       // Run our beautiful extension process!
@@ -46,47 +36,22 @@ document.addEventListener("keydown", (e) => {
   }
 }, true); // Use capture phase to run BEFORE page-level React key event listeners!
 
-function isContextValid() {
-  try {
-    return !!(chrome && chrome.runtime && chrome.runtime.id);
-  } catch (e) {
-    return false;
-  }
-}
-
 function triggerExtensionSummarize() {
-  if (!isContextValid()) {
-    showStatusBubble("❌ Extension reloaded. Please refresh this page.", "error");
-    return;
-  }
-
   showStatusBubble("🤖 Archiving all tabs to Notion...", "info");
 
-  try {
-    chrome.runtime.sendMessage({ action: "triggerSummarizeFromPage" }, (response) => {
-      let errorOccurred = false;
-      try {
-        if (chrome.runtime.lastError) {
-          showStatusBubble("❌ Extension connection failed. Reload the page.", "error");
-          errorOccurred = true;
-        }
-      } catch (e) {
-        showStatusBubble("❌ Extension context invalidated. Please refresh this page.", "error");
-        errorOccurred = true;
-      }
+  chrome.runtime.sendMessage({ action: "triggerSummarizeFromPage" }, (response) => {
+    if (chrome.runtime.lastError) {
+      showStatusBubble("❌ Extension connection failed. Reload the page.", "error");
+      return;
+    }
 
-      if (errorOccurred) return;
-
-      if (response && response.success) {
-        const count = response.archived || 0;
-        showStatusBubble(`✓ Successfully summarized & archived ${count} tabs to Notion!`, "success");
-      } else {
-        showStatusBubble(`❌ Failed: ${response?.error || "Unknown error"}`, "error");
-      }
-    });
-  } catch (err) {
-    showStatusBubble("❌ Extension context invalidated. Please refresh this page.", "error");
-  }
+    if (response && response.success) {
+      const count = response.archived || 0;
+      showStatusBubble(`✓ Successfully summarized & archived ${count} tabs to Notion!`, "success");
+    } else {
+      showStatusBubble(`❌ Failed: ${response?.error || "Unknown error"}`, "error");
+    }
+  });
 }
 
 // Function to show status bubble inside Claude's container

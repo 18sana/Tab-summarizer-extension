@@ -771,33 +771,30 @@ async function handlePurgeStalePages(request, sendResponse) {
 // Handle automatic '/summarize' trigger from content scripts inside page
 async function handleTriggerSummarizeFromPage(request, sendResponse) {
   try {
-    chrome.storage.sync.get(["notion_integration_token", "notion_database_id"], (syncData) => {
-      const notionToken = syncData.notion_integration_token;
-      const databaseId = syncData.notion_database_id;
+    chrome.storage.local.get(["notion_integration_token", "notion_database_id", "closeAfterArchive"], async (data) => {
+      const notionToken = data.notion_integration_token;
+      const databaseId = data.notion_database_id;
+      const closeAfterArchive = data.closeAfterArchive || false;
 
       if (!notionToken || !databaseId) {
         sendResponse({ success: false, error: "Not authenticated with Notion. Please connect via extension settings first." });
         return;
       }
 
-      chrome.storage.local.get(["closeAfterArchive"], async (localData) => {
-        const closeAfterArchive = localData.closeAfterArchive || false;
+      const fakeRequest = {
+        notionToken,
+        databaseId,
+        closeAfterArchive,
+        collection: "General"
+      };
 
-        const fakeRequest = {
-          notionToken,
-          databaseId,
-          closeAfterArchive,
-          collection: "General"
-        };
-
-        try {
-          await handleArchiveTabs(fakeRequest, (res) => {
-            sendResponse(res);
-          });
-        } catch (err) {
-          sendResponse({ success: false, error: err.message });
-        }
-      });
+      try {
+        await handleArchiveTabs(fakeRequest, (res) => {
+          sendResponse(res);
+        });
+      } catch (err) {
+        sendResponse({ success: false, error: err.message });
+      }
     });
   } catch (err) {
     sendResponse({ success: false, error: err.message });
