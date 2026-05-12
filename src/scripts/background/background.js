@@ -213,6 +213,22 @@ async function handleArchiveTabs(request, sendResponse) {
     // Process only unique tabs through Claude
     const summaries = await processBatchesThroughClaude(uniqueTabs);
 
+    // Align Claude summaries with original tabs to guarantee exact original normalized URLs
+    for (const summary of summaries) {
+      const normalizedSummaryUrl = DuplicateDetection.normalizeUrl(summary.url);
+      const matchingTab = uniqueTabs.find(tab => {
+        const normalizedTabUrl = DuplicateDetection.normalizeUrl(tab.url);
+        return normalizedTabUrl === normalizedSummaryUrl || 
+               normalizedTabUrl.includes(normalizedSummaryUrl) || 
+               normalizedSummaryUrl.includes(normalizedTabUrl);
+      });
+      if (matchingTab) {
+        summary.url = DuplicateDetection.normalizeUrl(matchingTab.url);
+      } else {
+        summary.url = normalizedSummaryUrl;
+      }
+    }
+
     // Merge dynamically generated smart bundle categories
     for (const summary of summaries) {
       const normUrl = DuplicateDetection.normalizeUrl(summary.url);
@@ -231,8 +247,12 @@ async function handleArchiveTabs(request, sendResponse) {
 
     // Close tabs if requested
     if (closeAfterArchive && archivedCount > 0) {
-      const tabIds = uniqueTabs.slice(0, archivedCount).map((t) => t.id);
-      chrome.tabs.remove(tabIds);
+      const tabIds = uniqueTabs.slice(0, archivedCount).map((t) => t.id).filter((id) => typeof id === "number");
+      if (tabIds.length > 0) {
+        chrome.tabs.remove(tabIds).catch((err) => {
+          console.warn("Background tab closure failed or tabs already closed:", err);
+        });
+      }
     }
 
     sendResponse({
@@ -304,6 +324,7 @@ function extractPageContent() {
 }
 
 function isBlockedDomain(url) {
+  if (!url) return true;
   const blockedDomains = [
     "chrome://",
     "about:",
@@ -452,15 +473,16 @@ async function postToNotion(summaries, notionToken, databaseId, customCollection
 }
 
 async function postSingleToNotion(summary, notionToken, databaseId, customCollection) {
+  const normalizedUrl = DuplicateDetection.normalizeUrl(summary.url);
   // Read any saved text highlights for this URL from local storage
-  const highlights = await getHighlightsForUrl(summary.url);
+  const highlights = await getHighlightsForUrl(normalizedUrl);
   
   const properties = {
     Name: {
       title: [{ text: { content: summary.title || "Untitled" } }],
     },
     URL: {
-      url: summary.url,
+      url: normalizedUrl,
     },
     Summary: {
       rich_text: [{ text: { content: summary.summary } }],
@@ -550,7 +572,7 @@ async function postSingleToNotion(summary, notionToken, databaseId, customCollec
   }
 
   // Clear highlights after successful archive
-  await clearHighlightsForUrl(summary.url);
+  await clearHighlightsForUrl(normalizedUrl);
   return await response.json();
 }
 
@@ -608,8 +630,12 @@ async function handleQueueOfflineTabs(request, sendResponse) {
       chrome.storage.local.set({ offline_queue: queue }, () => {
         // Close tabs if requested
         if (closeAfterArchive) {
-          const tabIds = tabs.map((t) => t.id).filter(Boolean);
-          if (tabIds.length > 0) chrome.tabs.remove(tabIds);
+          const tabIds = tabs.map((t) => t.id).filter((id) => typeof id === "number");
+          if (tabIds.length > 0) {
+            chrome.tabs.remove(tabIds).catch((err) => {
+              console.warn("Offline tab closure failed or tabs already closed:", err);
+            });
+          }
         }
         sendResponse({ success: true, queued: tabs.length });
       });
@@ -637,10 +663,26 @@ async function processOfflineQueue() {
       try {
         const summaries = await processBatchesThroughClaude(queue);
         
+        // Align Claude summaries with original queue tabs
+        for (const summary of summaries) {
+          const normalizedSummaryUrl = DuplicateDetection.normalizeUrl(summary.url);
+          const matchingTab = queue.find(tab => {
+            const normalizedTabUrl = DuplicateDetection.normalizeUrl(tab.url);
+            return normalizedTabUrl === normalizedSummaryUrl || 
+                   normalizedTabUrl.includes(normalizedSummaryUrl) || 
+                   normalizedSummaryUrl.includes(normalizedTabUrl);
+          });
+          if (matchingTab) {
+            summary.url = DuplicateDetection.normalizeUrl(matchingTab.url);
+          } else {
+            summary.url = normalizedSummaryUrl;
+          }
+        }
+        
         let successCount = 0;
         for (const summary of summaries) {
           try {
-            const correspondingTab = queue.find(t => t.url === summary.url);
+            const correspondingTab = queue.find(t => DuplicateDetection.normalizeUrl(t.url) === summary.url);
             const collection = correspondingTab ? correspondingTab.collection : "General";
             await postSingleToNotion(summary, notionToken, databaseId, collection);
             await updateAnalyticsData(summary);

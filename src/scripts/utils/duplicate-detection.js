@@ -23,10 +23,10 @@ export const DuplicateDetection = {
             filter: {
               property: "URL",
               url: {
-                equals: normalizedUrl,
+                contains: normalizedUrl,
               },
             },
-            page_size: 1,
+            page_size: 20,
           }),
         },
       );
@@ -38,20 +38,25 @@ export const DuplicateDetection = {
 
       const data = await response.json();
 
-      if (data.results.length > 0) {
-        const existingPage = data.results[0];
-        const createdTime = new Date(existingPage.created_time);
-
-        return {
-          isDuplicate: true,
-          url: url,
-          title: this.getPropertyValue(existingPage, "Name"),
-          archived: this.getPropertyValue(existingPage, "Date-Added"),
-          createdTime: createdTime,
-          daysAgo: this.getDaysAgo(createdTime),
-          notionPageId: existingPage.id,
-          notionUrl: existingPage.url,
-        };
+      // Check results for an exact normalized URL match in JavaScript
+      for (const existingPage of data.results) {
+        const pageUrl = this.getPropertyValue(existingPage, "URL");
+        if (pageUrl) {
+          const normalizedPageUrl = this.normalizeUrl(pageUrl);
+          if (normalizedPageUrl === normalizedUrl) {
+            const createdTime = new Date(existingPage.created_time);
+            return {
+              isDuplicate: true,
+              url: pageUrl,
+              title: this.getPropertyValue(existingPage, "Name"),
+              archived: this.getPropertyValue(existingPage, "Date-Added"),
+              createdTime: createdTime,
+              daysAgo: this.getDaysAgo(createdTime),
+              notionPageId: existingPage.id,
+              notionUrl: existingPage.url,
+            };
+          }
+        }
       }
 
       return { isDuplicate: false };
@@ -89,7 +94,7 @@ export const DuplicateDetection = {
                 or: batchUrls.map(url => ({
                   property: "URL",
                   url: {
-                    equals: url,
+                    contains: url,
                   },
                 })),
               },
@@ -111,16 +116,25 @@ export const DuplicateDetection = {
             const normalizedPageUrl = this.normalizeUrl(pageUrl);
             const createdTime = new Date(existingPage.created_time);
 
-            results[normalizedPageUrl] = {
-              isDuplicate: true,
-              url: pageUrl,
-              title: this.getPropertyValue(existingPage, "Name"),
-              archived: this.getPropertyValue(existingPage, "Date-Added"),
-              createdTime: createdTime,
-              daysAgo: this.getDaysAgo(createdTime),
-              notionPageId: existingPage.id,
-              notionUrl: existingPage.url,
-            };
+            // Find if there is an exact normalized URL match from our batch list
+            const matchedOriginalUrl = urls.find(originalUrl => {
+              const normInput = this.normalizeUrl(originalUrl);
+              return normalizedPageUrl === normInput;
+            });
+
+            if (matchedOriginalUrl) {
+              const normMatch = this.normalizeUrl(matchedOriginalUrl);
+              results[normMatch] = {
+                isDuplicate: true,
+                url: pageUrl,
+                title: this.getPropertyValue(existingPage, "Name"),
+                archived: this.getPropertyValue(existingPage, "Date-Added"),
+                createdTime: createdTime,
+                daysAgo: this.getDaysAgo(createdTime),
+                notionPageId: existingPage.id,
+                notionUrl: existingPage.url,
+              };
+            }
           }
         }
       }
